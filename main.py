@@ -78,8 +78,9 @@ def main():
         layout="wide"
     )
 
-    load_css(os.path.join(os.getcwd(), "static", "style.css"))
-    inject_local_font(os.path.join(os.getcwd(), "static", "AdobeClean.otf"), "AdobeClean")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    load_css(os.path.join(current_dir, "static", "style.css"))
+    inject_local_font(os.path.join(current_dir, "static", "AdobeClean.otf"), "AdobeClean")
 
     init_db()
 
@@ -131,6 +132,11 @@ def main():
                 """,
                 unsafe_allow_html=True,
             )
+            if st.button("🚪 Switch Athlete", key="sidebar_logout_btn"):
+                st.session_state["user_id"] = None
+                st.session_state["username"] = None
+                st.session_state["workout_started"] = False
+                st.rerun()
 
         if not workout_started:
             st.subheader("Workout Setup")
@@ -233,9 +239,27 @@ def main():
                         st.session_state.audio_id = time.time()
                 st.rerun()
 
-    # Center Page Content
-    st.title("AI Real-time GYM Coach")
-    st.markdown("##### Real-time pose detection with proactive AI voice coaching")
+    # Modern Center Page Top Navigation & Status Bar
+    status_label = "🔴 LIVE TRAINING" if workout_started else "🟢 VISION READY"
+    status_color = "#FF3366" if workout_started else "var(--accent-green)"
+    athlete_name = st.session_state.get("username", "Athlete")
+
+    st.markdown(
+        f"""
+        <div class="app-top-header">
+            <div class="top-brand-left">
+                <div class="top-pulse-dot" style="background:{status_color}; box-shadow:0 0 12px {status_color};"></div>
+                <span class="top-title-text">APNA <span class="hero-gradient-text">AI COACH</span> • PRO</span>
+            </div>
+            <div class="top-profile-badge">
+                <span style="color:{status_color}; font-weight:700; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em;">{status_label}</span>
+                <span>•</span>
+                <span>👤 Athlete: <strong>{athlete_name}</strong></span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
  
     # Seamless background audio playback (only fires once per audio_id so reruns do not restart or cancel it)
     current_audio_id = st.session_state.get("audio_id", 0)
