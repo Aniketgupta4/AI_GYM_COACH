@@ -269,8 +269,8 @@ def main():
         autoplay_audio(st.session_state.get("audio_to_play"), text=st.session_state.get("coach_feedback", ""))
         st.session_state.last_played_audio_id = current_audio_id
 
-    # Display coach feedback text cleanly without sound toolbar
-    if st.session_state.get("coach_feedback"):
+    # Display coach feedback text cleanly when not in workout mode (in workout mode it is inside the side HUD)
+    if not workout_started and st.session_state.get("coach_feedback"):
         st.markdown("")
         st.success(f"🤖 **Coach:** {st.session_state.coach_feedback}")
 
@@ -347,83 +347,205 @@ def main():
         exercise = st.session_state.get("exercise_type", "Exercise")
         total_reps = st.session_state.get("reps", 0)
         current_set_reps = st.session_state.get("current_set_reps", 0)
-        reps_per_set = st.session_state.get("reps_per_set", 0)
+        reps_per_set = st.session_state.get("reps_per_set", 10)
         sets_completed = st.session_state.get("sets_completed", 0)
-        target_sets = st.session_state.get("target_sets", 0)
+        target_sets = st.session_state.get("target_sets", 3)
 
-        # Single Source of Truth Live HUD (Center Stage Only!)
-        col_m1, col_m2, col_m3 = st.columns(3)
-        with col_m1:
-            st.metric("Total Reps", f"{total_reps}")
-        with col_m2:
-            st.metric("Current Set", f"{current_set_reps} / {reps_per_set}")
-        with col_m3:
-            st.metric("Sets Completed", f"{sets_completed} / {target_sets}")
+        # Side-by-Side Split View: Live Camera (Left) & Telemetry HUD (Right)
+        col_cam, col_hud = st.columns([13, 10], gap="medium")
 
-        # Form Status Row
-        if exercise == "Squats":
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                st.metric("Knee Angle", f"{st.session_state.get('knee_angle', 0)}°")
-            with col_s2:
-                st.metric("Depth Status", str(st.session_state.get('depth_status', 'N/A')))
-        elif exercise == "Push-ups":
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                st.metric("Elbow Angle", f"{st.session_state.get('elbow_angle', 0)}°")
-            with col_s2:
-                st.metric("Hip Alignment", str(st.session_state.get('hip_status', 'N/A')))
-        elif exercise == "Biceps Curls (Dumbbell)":
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                st.metric("Elbow Angle", f"{st.session_state.get('elbow_angle', 0)}°")
-            with col_s2:
-                st.metric("Shoulder Stability", str(st.session_state.get('shoulder_status', 'N/A')))
-        elif exercise == "Shoulder Press":
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                st.metric("Arm Extension", str(st.session_state.get('extension_status', 'N/A')))
-            with col_s2:
-                st.metric("Back Arch", str(st.session_state.get('back_arch_status', 'N/A')))
-        elif exercise == "Lunges":
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                st.metric("Front Knee", f"{st.session_state.get('front_knee_angle', 0)}°")
-            with col_s2:
-                st.metric("Balance", str(st.session_state.get('balance_status', 'N/A')))
+        with col_cam:
+            # Live Camera Stream
+            try:
+                context = webrtc_streamer(
+                    key="exercise-analysis",
+                    mode=WebRtcMode.SENDRECV,
+                    video_processor_factory=VideoProcessorClass,
+                    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                    media_stream_constraints={
+                        "video": True,
+                        "audio": False
+                    },
+                    async_processing=True
+                )
+            except Exception:
+                context = None
 
-        st.markdown("")
+            if context:
+                sync_metrics_update(context)
 
-        # Live Camera Feed
-        try:
-            context = webrtc_streamer(
-                key="exercise-analysis",
-                mode=WebRtcMode.SENDRECV,
-                video_processor_factory=VideoProcessorClass,
-                rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-                media_stream_constraints={
-                    "video": True,
-                    "audio": False
-                },
-                async_processing=True
+                if context.state.playing:
+                    time.sleep(0.25)
+                    st.rerun()
+
+            inject_webrtc_styles()
+
+            # Compact Live Session Info Strip below camera
+            st.markdown(
+                f"""
+                <div class="cam-info-strip">
+                    <div class="cam-live-badge"><span class="live-dot"></span> LIVE VISION ACTIVE</div>
+                    <div class="cam-exercise-tag">{exercise}</div>
+                    <div class="cam-goal-tag">Goal: {target_sets} Sets × {reps_per_set} Reps</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-        except Exception:
-            context = None
 
-        if context:
-            sync_metrics_update(context)
+        with col_hud:
+            # 1. AI Coach Feedback Card
+            coach_text = st.session_state.get("coach_feedback", "")
+            if coach_text:
+                st.markdown(
+                    f"""
+                    <div class="hud-coach-box">
+                        <div class="hud-coach-header">
+                            <span class="hud-coach-avatar">🤖</span>
+                            <span class="hud-coach-title">AI FORM COACH</span>
+                        </div>
+                        <div class="hud-coach-message">"{coach_text}"</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"""
+                    <div class="hud-coach-box hud-coach-idle">
+                        <div class="hud-coach-header">
+                            <span class="hud-coach-avatar">🤖</span>
+                            <span class="hud-coach-title">AI FORM COACH</span>
+                        </div>
+                        <div class="hud-coach-message" style="color:var(--text-muted); font-size:0.88rem;">
+                            Step into camera frame. AI coach is watching your posture!
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-            if context.state.playing:
-                time.sleep(0.25)
-                st.rerun()
+            # 2. Main Stat Cards: Total Reps & Set Progress
+            st.markdown(
+                f"""
+                <div class="hud-stats-grid">
+                    <div class="hud-stat-card hud-stat-hero">
+                        <span class="hud-stat-label">TOTAL REPS</span>
+                        <span class="hud-stat-number">{total_reps}</span>
+                    </div>
+                    <div class="hud-stat-card">
+                        <span class="hud-stat-label">CURRENT SET</span>
+                        <span class="hud-stat-number">{current_set_reps} <small style="font-size:0.85rem; color:var(--text-muted);">/ {reps_per_set}</small></span>
+                    </div>
+                    <div class="hud-stat-card">
+                        <span class="hud-stat-label">SETS COMPLETED</span>
+                        <span class="hud-stat-number">{sets_completed} <small style="font-size:0.85rem; color:var(--text-muted);">/ {target_sets}</small></span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        inject_webrtc_styles()
+            # Set Progress Bar
+            progress_pct = min(1.0, max(0.0, current_set_reps / reps_per_set)) if reps_per_set > 0 else 0.0
+            st.progress(progress_pct)
 
-        # Clean End Workout Button right below camera
-        st.markdown("")
-        col_end1, col_end2, col_end3 = st.columns([1, 2, 1])
-        with col_end2:
-            main_end_button = st.button("⏹️ End Workout Session", key="main_end_session_button", width="stretch")
+            # 3. Biomechanical Form Telemetry Row
+            if exercise == "Squats":
+                knee_angle = st.session_state.get('knee_angle', 0)
+                depth_status = str(st.session_state.get('depth_status', 'STAND'))
+                depth_color = "var(--accent-green)" if ("PARALLEL" in depth_status or "DEEP" in depth_status) else ("#FFB800" if "SHALLOW" in depth_status else "#FFFFFF")
+                st.markdown(
+                    f"""
+                    <div class="hud-telemetry-row">
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Knee Angle</span>
+                            <span class="telemetry-value">{knee_angle}°</span>
+                        </div>
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Depth Status</span>
+                            <span class="telemetry-pill" style="color:{depth_color}; border-color:{depth_color};">{depth_status}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            elif exercise == "Push-ups":
+                elbow_angle = st.session_state.get('elbow_angle', 0)
+                hip_status = str(st.session_state.get('hip_status', 'N/A'))
+                st.markdown(
+                    f"""
+                    <div class="hud-telemetry-row">
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Elbow Angle</span>
+                            <span class="telemetry-value">{elbow_angle}°</span>
+                        </div>
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Hip Alignment</span>
+                            <span class="telemetry-pill">{hip_status}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            elif exercise == "Biceps Curls (Dumbbell)":
+                elbow_angle = st.session_state.get('elbow_angle', 0)
+                shoulder_status = str(st.session_state.get('shoulder_status', 'N/A'))
+                st.markdown(
+                    f"""
+                    <div class="hud-telemetry-row">
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Elbow Flexion</span>
+                            <span class="telemetry-value">{elbow_angle}°</span>
+                        </div>
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Shoulder Stability</span>
+                            <span class="telemetry-pill">{shoulder_status}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            elif exercise == "Shoulder Press":
+                ext_status = str(st.session_state.get('extension_status', 'N/A'))
+                arch_status = str(st.session_state.get('back_arch_status', 'N/A'))
+                st.markdown(
+                    f"""
+                    <div class="hud-telemetry-row">
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Arm Extension</span>
+                            <span class="telemetry-pill">{ext_status}</span>
+                        </div>
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Back Arch</span>
+                            <span class="telemetry-pill">{arch_status}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            elif exercise == "Lunges":
+                front_knee = st.session_state.get('front_knee_angle', 0)
+                balance_status = str(st.session_state.get('balance_status', 'N/A'))
+                st.markdown(
+                    f"""
+                    <div class="hud-telemetry-row">
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Front Knee</span>
+                            <span class="telemetry-value">{front_knee}°</span>
+                        </div>
+                        <div class="hud-telemetry-item">
+                            <span class="telemetry-label">Torso Balance</span>
+                            <span class="telemetry-pill">{balance_status}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+
+            # Prominent Finish & Save Workout Button in HUD Panel
+            main_end_button = st.button("⏹️ Finish & Save Workout", key="hud_end_session_button", width="stretch")
             if main_end_button:
                 finish_and_save_workout_session()
                 if st.session_state.voice_pipeline:
