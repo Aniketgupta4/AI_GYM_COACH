@@ -34,7 +34,7 @@ from services.persistence.exercise_repository import init_db
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
 from services.tracking.metrics import sync_metrics_update, finish_and_save_workout_session
-from services.persistence.exercise_repository import get_users_exercises, clear_user_history
+from services.persistence.exercise_repository import get_users_exercises, clear_user_history, get_or_create_user
 from groq import Groq
 from services.coaching.llm import LLMCoach
 from services.coaching.tts import TextToSpeech
@@ -74,7 +74,7 @@ def main():
     st.set_page_config(
         page_icon="🏋️‍♀️",
         page_title="AI Real-time GYM Coach",
-        initial_sidebar_state="auto",
+        initial_sidebar_state="expanded",
         layout="wide"
     )
 
@@ -83,11 +83,13 @@ def main():
     inject_local_font(os.path.join(current_dir, "static", "AdobeClean.otf"), "AdobeClean")
 
     init_db()
-
-    if not render_login_wall():
-        return 
-
     initial_session_defaults()
+
+    # Ensure athlete profile is always active so sidebar and exercise selection never vanish
+    if "user_id" not in st.session_state or st.session_state.get("user_id") is None:
+        default_user = get_or_create_user("Aniket")
+        st.session_state["user_id"] = default_user["id"]
+        st.session_state["username"] = default_user["username"]
 
     if "voice_pipeline" not in st.session_state or st.session_state.voice_pipeline is None:
         try:
@@ -122,21 +124,27 @@ def main():
             unsafe_allow_html=True,
         )
 
-        if st.session_state.username:
-            st.markdown(
-                f"""
-                <div class="sidebar-user-pill">
-                    <span>👤</span>
-                    <span>Athlete: <strong>{st.session_state.username}</strong></span>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            if st.button("🚪 Switch Athlete", key="sidebar_logout_btn"):
-                st.session_state["user_id"] = None
-                st.session_state["username"] = None
-                st.session_state["workout_started"] = False
-                st.rerun()
+        athlete_name = st.session_state.get("username", "Aniket")
+        st.markdown(
+            f"""
+            <div class="sidebar-user-pill">
+                <span>👤</span>
+                <span>Athlete: <strong>{athlete_name}</strong></span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.expander("👤 Switch Athlete / Profile", expanded=False):
+            with st.form("switch_athlete_form", clear_on_submit=False):
+                new_athlete = st.text_input("Name", value=athlete_name, placeholder="e.g. Aniket")
+                if st.form_submit_button("Switch Profile", width="stretch"):
+                    cleaned = (new_athlete or "").strip()
+                    if cleaned:
+                        u = get_or_create_user(cleaned)
+                        st.session_state["user_id"] = u["id"]
+                        st.session_state["username"] = u["username"]
+                        st.rerun()
 
         if not workout_started:
             st.subheader("Workout Setup")
