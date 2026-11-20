@@ -85,11 +85,7 @@ def main():
     init_db()
     initial_session_defaults()
 
-    # Ensure athlete profile is always active so sidebar and exercise selection never vanish
-    if "user_id" not in st.session_state or st.session_state.get("user_id") is None:
-        default_user = get_or_create_user("Aniket")
-        st.session_state["user_id"] = default_user["id"]
-        st.session_state["username"] = default_user["username"]
+    is_logged_in = st.session_state.get("logged_in", False) and st.session_state.get("user_id") is not None
 
     if "voice_pipeline" not in st.session_state or st.session_state.voice_pipeline is None:
         try:
@@ -125,26 +121,33 @@ def main():
         )
 
         athlete_name = st.session_state.get("username", "Aniket")
-        st.markdown(
-            f"""
-            <div class="sidebar-user-pill">
-                <span>👤</span>
-                <span>Athlete: <strong>{athlete_name}</strong></span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
-        with st.expander("👤 Switch Athlete / Profile", expanded=False):
-            with st.form("switch_athlete_form", clear_on_submit=False):
-                new_athlete = st.text_input("Name", value=athlete_name, placeholder="e.g. Aniket")
-                if st.form_submit_button("Switch Profile", width="stretch"):
-                    cleaned = (new_athlete or "").strip()
-                    if cleaned:
-                        u = get_or_create_user(cleaned)
-                        st.session_state["user_id"] = u["id"]
-                        st.session_state["username"] = u["username"]
-                        st.rerun()
+        if is_logged_in:
+            st.markdown(
+                f"""
+                <div class="sidebar-user-pill">
+                    <span>👤</span>
+                    <span>Athlete: <strong>{athlete_name}</strong></span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if st.button("🚪 Switch Athlete / Logout", key="sidebar_logout_btn", width="stretch"):
+                st.session_state["logged_in"] = False
+                st.session_state["user_id"] = None
+                st.session_state["workout_started"] = False
+                st.rerun()
+        else:
+            st.markdown(
+                """
+                <div class="sidebar-user-pill">
+                    <span>👤</span>
+                    <span>Status: <strong>Guest (Sign In)</strong></span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         if not workout_started:
             st.subheader("Workout Setup")
@@ -157,9 +160,16 @@ def main():
 
             st.markdown("")
 
-            start_session_button = st.button("🚀 Start Workout", width="stretch", key="start_session_button")
+            start_label = "🚀 Start Workout" if is_logged_in else f"🚀 Start as {athlete_name}"
+            start_session_button = st.button(start_label, width="stretch", key="start_session_button")
 
             if start_session_button:
+                if not is_logged_in:
+                    u = get_or_create_user(athlete_name)
+                    st.session_state["user_id"] = u["id"]
+                    st.session_state["username"] = u["username"]
+                    st.session_state["logged_in"] = True
+
                 st.session_state.exercise_type = plan_exercise
                 st.session_state.target_sets = int(plan_sets)
                 st.session_state.reps_per_set = int(plan_reps)
@@ -246,6 +256,11 @@ def main():
                         st.session_state.audio_to_play, st.session_state.coach_feedback = result
                         st.session_state.audio_id = time.time()
                 st.rerun()
+
+    # Check if athlete is logged in; if not, render high-impact Athlete Login Wall in center view
+    if not is_logged_in:
+        render_login_wall()
+        return
 
     # Modern Center Page Top Navigation & Status Bar
     status_label = "🔴 LIVE TRAINING" if workout_started else "🟢 VISION READY"

@@ -17,6 +17,11 @@ def initial_session_defaults():
         "set_cycle_started_at": 0.0,
         "last_exercise_type": "Squats",
 
+        # Athlete Login & Profile
+        "logged_in": False,
+        "user_id": None,
+        "username": "Aniket",
+
         # Audio and Coaching state
         "audio_to_play": None,
         "coach_feedback": "",
