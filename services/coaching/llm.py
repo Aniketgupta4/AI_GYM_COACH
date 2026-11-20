@@ -19,6 +19,8 @@ class LLMCoach:
             return "Workout completed! Outstanding effort today, rest up and hydrate!"
         if event == "set_completed":
             return "Awesome job! Set complete, take a breath before the next one."
+        if event == "rep_completed":
+            return "Strong rep! Maintain that rhythm and power!"
         if event == "no_pose_detected":
             return "Step into the camera frame so I can track your workout."
 

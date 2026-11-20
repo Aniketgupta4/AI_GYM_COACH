@@ -2,9 +2,9 @@ from core.base_exercise import BaseExercise
 
 
 class SquatDetector(BaseExercise):
-    DOWN_THRESHOLD = 100   
-    UP_THRESHOLD = 160     
-    MIN_VISIBILITY = 0.7
+    DOWN_THRESHOLD = 110   
+    UP_THRESHOLD = 150     
+    MIN_VISIBILITY = 0.40
 
     LEFT_HIP = 23
     LEFT_KNEE = 25
@@ -44,10 +44,10 @@ class SquatDetector(BaseExercise):
 
         if left_vis >= right_vis:
             knee_angle = left_knee_angle
-            hip_idx, knee_idx, ankle_idx, shoulder_idx = self.LEFT_HIP, self.LEFT_KNEE, self.LEFT_ANKLE, self.LEFT_SHOULDER
+            hip_idx, knee_idx, shoulder_idx = self.LEFT_HIP, self.LEFT_KNEE, self.LEFT_SHOULDER
         else:
             knee_angle = right_knee_angle
-            hip_idx, knee_idx, ankle_idx, shoulder_idx = self.RIGHT_HIP, self.RIGHT_KNEE, self.RIGHT_ANKLE, self.RIGHT_SHOULDER
+            hip_idx, knee_idx, shoulder_idx = self.RIGHT_HIP, self.RIGHT_KNEE, self.RIGHT_SHOULDER
 
         back_angle = self.calculate_angle(
             self.get_point(landmarks, shoulder_idx),
@@ -58,7 +58,6 @@ class SquatDetector(BaseExercise):
         key_landmark_visible = (
             landmarks[hip_idx].visibility >= self.MIN_VISIBILITY
             and landmarks[knee_idx].visibility >= self.MIN_VISIBILITY
-            and landmarks[ankle_idx].visibility >= self.MIN_VISIBILITY
         )
 
         if key_landmark_visible:
@@ -82,7 +81,7 @@ class SquatDetector(BaseExercise):
             depth_status = "TOO SHALLOW"
         elif self.stage == "down" or knee_angle <= self.DOWN_THRESHOLD:
             depth_status = "GOOD DEPTH"
-        elif knee_angle < 140:
+        elif knee_angle < 135:
             depth_status = "SQUATTING"
         else:
             depth_status = "STANDING"

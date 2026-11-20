@@ -85,6 +85,21 @@ def sync_metrics_update(context):
 
         st.session_state.last_saved_sets_completed = sets_completed
 
+    # Rep progress voice encouragement (every few reps when cadence allows)
+    last_notified_reps = st.session_state.get("last_notified_reps", 0)
+    if reps > last_notified_reps:
+        st.session_state["last_notified_reps"] = reps
+        if not event_handled and pipeline and not workout_completed:
+            result = pipeline.process_event(
+                event="rep_completed",
+                exercise=exercise,
+                metrics={"rep_num": reps, "current_set_reps": current_set_reps},
+            )
+            if result:
+                st.session_state.audio_to_play, st.session_state.coach_feedback = result
+                st.session_state.audio_id = time.time()
+                event_handled = True
+
     # Full workout completion (target sets achieved)
     if workout_completed and not st.session_state.get("last_notified_workout_complete", False):
         st.session_state.last_notified_workout_complete = True

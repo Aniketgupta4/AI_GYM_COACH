@@ -257,6 +257,7 @@ def main():
                 st.session_state.set_cycle_started_at = time.time()
                 st.session_state.last_saved_sets_completed = 0
                 st.session_state.last_notified_sets_completed = 0
+                st.session_state.last_notified_reps = 0
                 st.session_state.last_notified_workout_complete = False
                 st.session_state.needs_detector_reset = True
 
@@ -355,9 +356,11 @@ def main():
     )
  
     # Audio playback when NOT in workout mode (welcome/completion)
-    if not workout_started and st.session_state.get("audio_to_play"):
-        autoplay_audio(st.session_state.audio_to_play)
-        st.session_state["audio_to_play"] = None
+    audio_id = st.session_state.get("audio_id", 0)
+    last_played_id = st.session_state.get("last_played_audio_id", 0)
+    if not workout_started and audio_id > 0 and audio_id != last_played_id:
+        autoplay_audio(st.session_state.get("audio_to_play"), text=st.session_state.get("coach_feedback", ""), audio_id=str(audio_id))
+        st.session_state["last_played_audio_id"] = audio_id
 
     # Display coach feedback text cleanly when not in workout mode (in workout mode it is inside the side HUD)
     if not workout_started and st.session_state.get("coach_feedback"):
@@ -475,6 +478,7 @@ def main():
                 st.session_state.set_cycle_started_at = time.time()
                 st.session_state.last_saved_sets_completed = 0
                 st.session_state.last_notified_sets_completed = 0
+                st.session_state.last_notified_reps = 0
                 st.session_state.last_notified_workout_complete = False
                 st.session_state.needs_detector_reset = True
 
@@ -554,10 +558,11 @@ def main():
             target_sets = st.session_state.get("target_sets", 3)
 
             # In-session coach audio playback (placed inside col_hud so it NEVER shifts col_cam or unmounts webrtc_streamer)
+            audio_id = st.session_state.get("audio_id", 0)
             audio_data = st.session_state.get("audio_to_play")
-            if audio_data:
-                autoplay_audio(audio_data)
-                st.session_state["audio_to_play"] = None
+            coach_text = st.session_state.get("coach_feedback", "")
+            if audio_id > 0 and (audio_data or coach_text):
+                autoplay_audio(audio_data, text=coach_text, audio_id=str(audio_id))
 
             # 1. AI Coach Feedback Card
             coach_text = st.session_state.get("coach_feedback", "")

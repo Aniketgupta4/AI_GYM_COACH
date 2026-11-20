@@ -3,11 +3,11 @@ from core.base_exercise import BaseExercise
 
 
 class BicepsCurlDetector(BaseExercise):
-    UP_THRESHOLD = 50
-    DOWN_THRESHOLD = 160
-    MIN_VISIBILITY = 0.7
-    ELBOW_DRIFT_TOLERANCE = 0.06
-    SWING_THRESHOLD = 15
+    UP_THRESHOLD = 60
+    DOWN_THRESHOLD = 140
+    MIN_VISIBILITY = 0.40
+    ELBOW_DRIFT_TOLERANCE = 0.08
+    SWING_THRESHOLD = 18
 
     LEFT_SHOULDER = 11
     LEFT_ELBOW = 13
@@ -46,7 +46,11 @@ class BicepsCurlDetector(BaseExercise):
             self.get_point(landmarks, wrist_idx),
         )
 
-        key_landmarks_visible = landmarks[shoulder_idx].visibility > self.MIN_VISIBILITY and landmarks[elbow_idx].visibility > self.MIN_VISIBILITY and landmarks[wrist_idx].visibility > self.MIN_VISIBILITY
+        key_landmarks_visible = (
+            landmarks[shoulder_idx].visibility >= self.MIN_VISIBILITY and
+            landmarks[elbow_idx].visibility >= self.MIN_VISIBILITY and
+            landmarks[wrist_idx].visibility >= self.MIN_VISIBILITY
+        )
 
         if key_landmarks_visible:
             if elbow_angle < self.UP_THRESHOLD:
@@ -90,4 +94,3 @@ class BicepsCurlDetector(BaseExercise):
 
     def _safe_angle(self, dx, dy):
         return math.degrees(math.atan2(abs(dx), abs(dy))) if dy != 0 else 0.0
-    

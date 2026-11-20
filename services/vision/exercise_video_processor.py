@@ -30,9 +30,9 @@ class VideoProcessorClass(VideoProcessorBase):
         options = vision.PoseLandmarkerOptions(
             base_options=base_option,
             running_mode=vision.RunningMode.VIDEO,
-            min_pose_detection_confidence=0.7,
-            min_pose_presence_confidence=0.7,
-            min_tracking_confidence=0.7,
+            min_pose_detection_confidence=0.5,
+            min_pose_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
             output_segmentation_masks=False
         )
 
@@ -80,7 +80,7 @@ class VideoProcessorClass(VideoProcessorBase):
             p1 = landmarks[start_idx]
             p2 = landmarks[end_idx]
 
-            if p1.visibility > 0.7 and p2.visibility > 0.7:
+            if p1.visibility > 0.40 and p2.visibility > 0.40:
                 cv2.line(
                     img,
                     (int(p1.x * w), int(p1.y * h)),
@@ -90,7 +90,7 @@ class VideoProcessorClass(VideoProcessorBase):
                 )
         
         for lm in landmarks:
-            if lm.visibility > 0.7:
+            if lm.visibility > 0.40:
                 cv2.circle(
                     img, 
                     (int(lm.x * w), int(lm.y * h)),

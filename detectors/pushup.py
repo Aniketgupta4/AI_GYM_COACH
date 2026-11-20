@@ -2,10 +2,10 @@ from core.base_exercise import BaseExercise
 
 
 class PushUpDetector(BaseExercise):
-    DOWN_THRESHOLD = 90
-    UP_THRESHOLD = 160
-    MIN_VISIBILITY = 0.7
-    HIP_SAG_TOLERANCE = 0.08
+    DOWN_THRESHOLD = 105
+    UP_THRESHOLD = 145
+    MIN_VISIBILITY = 0.40
+    HIP_SAG_TOLERANCE = 0.09
 
     LEFT_SHOULDER = 11
     LEFT_ELBOW = 13
@@ -61,7 +61,11 @@ class PushUpDetector(BaseExercise):
         expected_hip_y = (shoulder_y + ankle_y) / 2
         hip_deviation = hip_y - expected_hip_y
 
-        key_landmarks_visible = landmarks[shoulder_idx].visibility > self.MIN_VISIBILITY and landmarks[elbow_idx].visibility > self.MIN_VISIBILITY and landmarks[wrist_idx].visibility > self.MIN_VISIBILITY and landmarks[hip_idx].visibility > self.MIN_VISIBILITY
+        key_landmarks_visible = (
+            landmarks[shoulder_idx].visibility >= self.MIN_VISIBILITY and
+            landmarks[elbow_idx].visibility >= self.MIN_VISIBILITY and
+            landmarks[wrist_idx].visibility >= self.MIN_VISIBILITY
+        )
         
         if key_landmarks_visible:
             if elbow_angle < self.DOWN_THRESHOLD:
@@ -71,9 +75,9 @@ class PushUpDetector(BaseExercise):
                 self.stage = "up"
                 self.reps += 1
 
-        if body_angle > 160:
+        if body_angle > 155:
             body_alignment = "Straight"
-        elif body_angle > 140:
+        elif body_angle > 135:
             body_alignment = "Slight Bend"
         else:
             body_alignment = "Poor Form"
@@ -91,4 +95,3 @@ class PushUpDetector(BaseExercise):
             "body_alignment": body_alignment,
             "hip_status": hip_status,
         }
-    
