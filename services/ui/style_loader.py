@@ -39,83 +39,15 @@ def inject_webrtc_styles():
         return
     st.session_state["_webrtc_styles_injected"] = True
 
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    font_path = os.path.join(base_dir, "static", "AdobeClean.otf")
-    encoded_font = ""
-    
-    if os.path.exists(font_path):
-        with open(font_path, "rb") as font_file:
-            encoded_font = base64.b64encode(font_file.read()).decode()
-
-    components.html(
-        f"""
-        <script>
-        (function patchWebRTCStyles() {{
-            function injectIntoIframe(iframe) {{
-                try {{
-                    const doc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (!doc || !doc.head) return;
-                    if (doc.head.querySelector('#webrtc-custom-styles')) return;
-                    const style = doc.createElement('style');
-                    style.id = 'webrtc-custom-styles';
-                    style.textContent = `
-                        @font-face {{
-                            font-family: 'AdobeClean';
-                            src: url('data:font/otf;base64,{encoded_font}') format('opentype');
-                            font-weight: 100 900;
-                            font-style: normal;
-                        }}
-                        video {{
-                            width: 100% !important;
-                            height: auto !important;
-                            max-width: 100% !important;
-                            border-radius: 8px !important;
-                            object-fit: contain !important;
-                        }}
-                        .MuiButtonBase-root,
-                        .MuiButton-root,
-                        .MuiButton-contained,
-                        .MuiButton-text {{
-                            border-radius: 8px !important;
-                            font-family: 'AdobeClean', sans-serif !important;
-                            letter-spacing: 0.03em !important;
-                            min-height: 44px !important;
-                            font-size: 0.95rem !important;
-                            font-weight: 600 !important;
-                        }}
-                        .MuiBox-root {{
-                            max-width: 100% !important;
-                            display: flex !important;
-                            flex-wrap: wrap !important;
-                            gap: 8px !important;
-                            justify-content: center !important;
-                        }}
-                    `;
-                    doc.head.appendChild(style);
-                }} catch (e) {{
-                    console.warn('[patcher] could not inject:', e);
-                }}
-            }}
-
-            function findAndPatch() {{
-                try {{
-                    const parentDoc = window.parent.document;
-                    const iframes = parentDoc.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {{
-                        if (iframe.src && iframe.src.includes('webrtc')) {{
-                            if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {{
-                                injectIntoIframe(iframe);
-                            }} else {{
-                                iframe.addEventListener('load', () => injectIntoIframe(iframe));
-                            }}
-                        }}
-                    }});
-                }} catch (e) {{}}
-            }}
-
-            findAndPatch();
-        }})();
-        </script>
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stCustomComponentV1"] iframe {
+            border-radius: 12px !important;
+            border: 1px solid var(--border-neon) !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+        }
+        </style>
         """,
-        height=0,
+        unsafe_allow_html=True,
     )
