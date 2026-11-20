@@ -29,7 +29,7 @@ import streamlit as st
 from services.auth.login_wall import render_login_wall
 from services.state.session_defaults import initial_session_defaults
 from services.config.workout_config import EXERCISE_OPTIONS
-from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
+from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles, ensure_sidebar_expanded
 from services.persistence.exercise_repository import init_db
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
@@ -70,6 +70,30 @@ EXERCISE_TIPS = {
 }
 
 
+def sync_from_main():
+    ex = st.session_state.get("main_plan_exercise", "Squats")
+    sets = st.session_state.get("main_plan_sets", 3)
+    reps = st.session_state.get("main_plan_reps", 10)
+    st.session_state.plan_exercise = ex
+    st.session_state.plan_sets = sets
+    st.session_state.plan_reps = reps
+    st.session_state.sb_plan_exercise = ex
+    st.session_state.sb_plan_sets = sets
+    st.session_state.sb_plan_reps = reps
+
+
+def sync_from_sb():
+    ex = st.session_state.get("sb_plan_exercise", "Squats")
+    sets = st.session_state.get("sb_plan_sets", 3)
+    reps = st.session_state.get("sb_plan_reps", 10)
+    st.session_state.plan_exercise = ex
+    st.session_state.plan_sets = sets
+    st.session_state.plan_reps = reps
+    st.session_state.main_plan_exercise = ex
+    st.session_state.main_plan_sets = sets
+    st.session_state.main_plan_reps = reps
+
+
 def main():
     st.set_page_config(
         page_icon="🏋️‍♀️",
@@ -81,6 +105,7 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     load_css(os.path.join(current_dir, "static", "style.css"))
     inject_local_font(os.path.join(current_dir, "static", "AdobeClean.otf"), "AdobeClean")
+    ensure_sidebar_expanded()
 
     init_db()
     initial_session_defaults()
@@ -152,15 +177,44 @@ def main():
         if not workout_started:
             st.subheader("Workout Setup")
 
-            plan_exercise = st.selectbox("Select Exercise", options=EXERCISE_OPTIONS, key="plan_exercise")
+            cur_plan_ex = st.session_state.get("plan_exercise", EXERCISE_OPTIONS[0])
+            cur_idx = EXERCISE_OPTIONS.index(cur_plan_ex) if cur_plan_ex in EXERCISE_OPTIONS else 0
 
-            plan_sets = st.number_input("Target Sets", min_value=1, max_value=50, value=3, key="plan_sets", step=1)
+            sb_plan_exercise = st.selectbox(
+                "Select Exercise",
+                options=EXERCISE_OPTIONS,
+                index=cur_idx,
+                key="sb_plan_exercise",
+                on_change=sync_from_sb
+            )
 
-            plan_reps = st.number_input("Reps per Set", min_value=1, max_value=50, value=10, key="plan_reps", step=1)
+            sb_plan_sets = st.number_input(
+                "Target Sets",
+                min_value=1,
+                max_value=50,
+                value=int(st.session_state.get("plan_sets", 3)),
+                key="sb_plan_sets",
+                step=1,
+                on_change=sync_from_sb
+            )
+
+            sb_plan_reps = st.number_input(
+                "Reps per Set",
+                min_value=1,
+                max_value=50,
+                value=int(st.session_state.get("plan_reps", 10)),
+                key="sb_plan_reps",
+                step=1,
+                on_change=sync_from_sb
+            )
+
+            plan_exercise = st.session_state.get("plan_exercise", sb_plan_exercise)
+            plan_sets = int(st.session_state.get("plan_sets", sb_plan_sets))
+            plan_reps = int(st.session_state.get("plan_reps", sb_plan_reps))
 
             st.markdown("")
 
-            start_label = "🚀 Start Workout" if is_logged_in else f"🚀 Start as {athlete_name}"
+            start_label = f"🚀 Start Workout ({plan_exercise})" if is_logged_in else f"🚀 Start as {athlete_name}"
             start_session_button = st.button(start_label, width="stretch", key="start_session_button")
 
             if start_session_button:
@@ -298,50 +352,107 @@ def main():
         st.success(f"🤖 **Coach:** {st.session_state.coach_feedback}")
 
     if not workout_started:
-        plan_ex = st.session_state.get("plan_exercise", EXERCISE_OPTIONS[0])
-        plan_s = st.session_state.get("plan_sets", 3)
-        plan_r = st.session_state.get("plan_reps", 10)
-        total_target_reps = plan_s * plan_r
+        cur_plan_ex = st.session_state.get("plan_exercise", EXERCISE_OPTIONS[0])
+        cur_idx = EXERCISE_OPTIONS.index(cur_plan_ex) if cur_plan_ex in EXERCISE_OPTIONS else 0
+        cur_sets = int(st.session_state.get("plan_sets", 3))
+        cur_reps = int(st.session_state.get("plan_reps", 10))
 
         st.markdown(
-            f"""
+            """
             <div class="ready-card-container">
                 <div class="ready-card-header">
                     <span style="font-size:1.8rem;">🏋️‍♂️</span>
                     <div>
-                        <h3 style="margin:0; color:#fff;">Session Setup</h3>
-                        <span class="ready-card-badge">AI Vision & Voice Ready</span>
+                        <h3 style="margin:0; color:#fff;">Session Setup & Target Plan</h3>
+                        <span class="ready-card-badge">Customize Your Exercise, Sets & Reps</span>
                     </div>
                 </div>
-                <div class="ready-card-grid">
-                    <div class="ready-grid-item">
-                        <div class="ready-item-title">Selected Exercise</div>
-                        <div class="ready-item-value">{plan_ex}</div>
-                    </div>
-                    <div class="ready-grid-item">
-                        <div class="ready-item-title">Target Sets & Reps</div>
-                        <div class="ready-item-value">{plan_s} Sets × {plan_r} Reps</div>
-                    </div>
-                    <div class="ready-grid-item">
-                        <div class="ready-item-title">Total Rep Goal</div>
-                        <div class="ready-item-value">{total_target_reps} Reps</div>
-                    </div>
-                </div>
-                <p style="color:var(--text-muted); font-size:0.92rem; margin:12px 0 0 0;">
-                    Configure your plan in the sidebar (☰ on mobile), or tap <strong>Start Workout</strong> below to activate your live camera and AI voice coach.
-                </p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
+        # Full Interactive Workout Controls Right on Center Screen!
+        setup_c1, setup_c2, setup_c3 = st.columns([5, 3, 3], gap="medium")
+        with setup_c1:
+            main_exercise = st.selectbox(
+                "🏋️ Select Exercise",
+                options=EXERCISE_OPTIONS,
+                index=cur_idx,
+                key="main_plan_exercise",
+                on_change=sync_from_main
+            )
+        with setup_c2:
+            main_sets = st.number_input(
+                "🎯 Target Sets",
+                min_value=1,
+                max_value=50,
+                value=cur_sets,
+                key="main_plan_sets",
+                step=1,
+                on_change=sync_from_main
+            )
+        with setup_c3:
+            main_reps = st.number_input(
+                "🔄 Reps per Set",
+                min_value=1,
+                max_value=50,
+                value=cur_reps,
+                key="main_plan_reps",
+                step=1,
+                on_change=sync_from_main
+            )
+
+        active_exercise = st.session_state.get("plan_exercise", main_exercise)
+        active_sets = int(st.session_state.get("plan_sets", main_sets))
+        active_reps = int(st.session_state.get("plan_reps", main_reps))
+        active_total_reps = active_sets * active_reps
+
+        st.markdown(
+            f"""
+            <div class="ready-card-grid" style="margin-top: 14px; margin-bottom: 16px;">
+                <div class="ready-grid-item">
+                    <div class="ready-item-title">Selected Exercise</div>
+                    <div class="ready-item-value">{active_exercise}</div>
+                </div>
+                <div class="ready-grid-item">
+                    <div class="ready-item-title">Target Sets & Reps</div>
+                    <div class="ready-item-value" style="color:var(--accent-green);">{active_sets} Sets × {active_reps} Reps</div>
+                </div>
+                <div class="ready-grid-item">
+                    <div class="ready-item-title">Total Rep Goal</div>
+                    <div class="ready-item-value">{active_total_reps} Reps Total</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Form Guidance Tips
+        tips = EXERCISE_TIPS.get(active_exercise, [])
+        if tips:
+            tips_html = "".join([f"<li>{t}</li>" for t in tips])
+            st.markdown(
+                f"""
+                <div class="sidebar-tips-card" style="margin-bottom: 22px;">
+                    <h4>💡 {active_exercise} — Form Guidance & Technique</h4>
+                    <ul>{tips_html}</ul>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
         with btn_col2:
-            main_start_button = st.button("🚀 Start Workout Now", key="main_start_workout_button", width="stretch")
+            main_start_button = st.button(
+                f"🚀 Start Workout Now ({active_exercise})",
+                key="main_start_workout_button",
+                width="stretch"
+            )
             if main_start_button:
-                st.session_state.exercise_type = plan_ex
-                st.session_state.target_sets = int(plan_s)
-                st.session_state.reps_per_set = int(plan_r)
+                st.session_state.exercise_type = active_exercise
+                st.session_state.target_sets = int(active_sets)
+                st.session_state.reps_per_set = int(active_reps)
                 st.session_state.reps = 0
                 st.session_state.sets_completed = 0
                 st.session_state.current_set_reps = 0
@@ -357,7 +468,7 @@ def main():
                 if st.session_state.voice_pipeline:
                     result = st.session_state.voice_pipeline.process_event(
                         event="workout_started",
-                        exercise=plan_ex,
+                        exercise=active_exercise,
                         metrics={}
                     )
                     if result:

@@ -115,3 +115,30 @@ def inject_webrtc_styles():
         """,
         height=0,
     )
+
+
+def ensure_sidebar_expanded():
+    components.html(
+        """
+        <script>
+        (function ensureSidebar() {
+            function triggerExpand() {
+                try {
+                    const doc = window.parent.document;
+                    if (!doc) return;
+                    const expandBtn = doc.querySelector('[data-testid="stExpandSidebarButton"]') || 
+                                      doc.querySelector('button[data-testid="stExpandSidebarButton"]');
+                    const sidebar = doc.querySelector('[data-testid="stSidebar"]');
+                    if (expandBtn && (!sidebar || sidebar.getAttribute('aria-expanded') === 'false')) {
+                        expandBtn.click();
+                    }
+                } catch (e) {}
+            }
+            triggerExpand();
+            setTimeout(triggerExpand, 300);
+            setTimeout(triggerExpand, 1000);
+        })();
+        </script>
+        """,
+        height=0,
+    )

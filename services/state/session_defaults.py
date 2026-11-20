@@ -35,6 +35,12 @@ def initial_session_defaults():
         "plan_exercise": "Squats",
         "plan_sets": 3,
         "plan_reps": 10,
+        "sb_plan_exercise": "Squats",
+        "sb_plan_sets": 3,
+        "sb_plan_reps": 10,
+        "main_plan_exercise": "Squats",
+        "main_plan_sets": 3,
+        "main_plan_reps": 10,
 
         # Common Angles
         "knee_angle": 0,

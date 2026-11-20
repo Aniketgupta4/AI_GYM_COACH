@@ -67,12 +67,6 @@ def render_login_wall():
                 placeholder="Enter athlete name (e.g. Aniket)"
             )
 
-            # Sidebar plan preview
-            plan_exercise = st.session_state.get("plan_exercise", "Squats")
-            plan_sets = st.session_state.get("plan_sets", 3)
-            plan_reps = st.session_state.get("plan_reps", 10)
-            st.caption(f"⚡ Selected in Sidebar: **{plan_exercise}** ({plan_sets} Sets × {plan_reps} Reps)")
-
             submit_button = st.form_submit_button("🚀 Enter Training Arena & Save Profile", width="stretch")
 
         if submit_button:
