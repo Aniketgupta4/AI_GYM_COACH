@@ -531,10 +531,6 @@ def main():
             if context:
                 sync_metrics_update(context)
 
-                if context.state.playing:
-                    time.sleep(0.25)
-                    st.rerun()
-
             inject_webrtc_styles()
 
             # Compact Live Session Info Strip below camera
@@ -550,6 +546,13 @@ def main():
             )
 
         with col_hud:
+            # Refresh live values updated by sync_metrics_update in this frame
+            total_reps = st.session_state.get("reps", 0)
+            current_set_reps = st.session_state.get("current_set_reps", 0)
+            reps_per_set = st.session_state.get("reps_per_set", 10)
+            sets_completed = st.session_state.get("sets_completed", 0)
+            target_sets = st.session_state.get("target_sets", 3)
+
             # In-session coach audio playback (placed inside col_hud so it NEVER shifts col_cam or unmounts webrtc_streamer)
             audio_data = st.session_state.get("audio_to_play")
             if audio_data:
@@ -721,6 +724,11 @@ def main():
                         st.session_state.audio_to_play, st.session_state.coach_feedback = result
                         st.session_state.audio_id = time.time()
                 st.rerun()
+
+        # Real-time refresh loop: re-runs every 250ms while playing so col_hud renders fresh metrics and voice coaching
+        if context and getattr(context, "state", None) and context.state.playing:
+            time.sleep(0.25)
+            st.rerun()
 
     st.divider()
 

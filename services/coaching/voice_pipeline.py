@@ -54,6 +54,8 @@ class VoicePipeline:
             back_arch = metrics.get("back_arch_status", "")
             if back_arch == "Excessive Arch":
                 return "Lower back is arching excessively — brace your core tight."
+            if back_arch == "Slight Arch":
+                return "Slight back arch detected — brace your core to keep your spine neutral."
 
         elif exercise == "Lunges":
             balance = metrics.get("balance_status", "")
@@ -73,10 +75,10 @@ class VoicePipeline:
 
         if not is_major_event:
             if event == "no_pose_detected":
-                if now - self.last_spoken_at < 8:
+                if now - self.last_spoken_at < 6:
                     return None
             elif issue:
-                if now - self.last_spoken_at < 6:
+                if now - self.last_spoken_at < 4:
                     return None
             else:
                 return None
