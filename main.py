@@ -354,13 +354,10 @@ def main():
         unsafe_allow_html=True,
     )
  
-    # Seamless background audio playback (only fires once per audio_id so reruns do not restart or cancel it)
-    current_audio_id = st.session_state.get("audio_id", 0)
-    last_played_id = st.session_state.get("last_played_audio_id", 0)
-
-    if current_audio_id > 0 and current_audio_id != last_played_id:
-        autoplay_audio(st.session_state.get("audio_to_play"), text=st.session_state.get("coach_feedback", ""))
-        st.session_state.last_played_audio_id = current_audio_id
+    # Audio playback when NOT in workout mode (welcome/completion)
+    if not workout_started and st.session_state.get("audio_to_play"):
+        autoplay_audio(st.session_state.audio_to_play)
+        st.session_state["audio_to_play"] = None
 
     # Display coach feedback text cleanly when not in workout mode (in workout mode it is inside the side HUD)
     if not workout_started and st.session_state.get("coach_feedback"):
@@ -531,10 +528,12 @@ def main():
             except Exception:
                 context = None
 
-            if context and context.state.playing:
+            if context:
                 sync_metrics_update(context)
-                time.sleep(0.3)
-                st.rerun()
+
+                if context.state.playing:
+                    time.sleep(0.25)
+                    st.rerun()
 
             inject_webrtc_styles()
 
@@ -551,6 +550,12 @@ def main():
             )
 
         with col_hud:
+            # In-session coach audio playback (placed inside col_hud so it NEVER shifts col_cam or unmounts webrtc_streamer)
+            audio_data = st.session_state.get("audio_to_play")
+            if audio_data:
+                autoplay_audio(audio_data)
+                st.session_state["audio_to_play"] = None
+
             # 1. AI Coach Feedback Card
             coach_text = st.session_state.get("coach_feedback", "")
             if coach_text:

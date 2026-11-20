@@ -79,10 +79,7 @@ class VoicePipeline:
                 if now - self.last_spoken_at < 6:
                     return None
             else:
-                # Periodic positive encouragement every 15 seconds during active exercise
-                if now - self.last_spoken_at < 15:
-                    return None
-                self.last_encouraged_at = now
+                return None
 
         try:
             text = self.llm.give_feedback(event, issue)
@@ -99,85 +96,7 @@ class VoicePipeline:
 
 
 def autoplay_audio(audio_bytes, text=""):
-    """
-    Plays audio cleanly and seamlessly in the browser.
-    Injects directly into the top-level page using st.html (no iframes).
-    Survives Streamlit's 250ms reruns without stopping or restarting.
-    """
-    if not audio_bytes and not text:
+    if not audio_bytes:
         return
-
-    b64 = base64.b64encode(audio_bytes).decode("utf-8") if audio_bytes else ""
-    escaped_text = (text or "").replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', ' ').replace('\r', '')
-    timestamp = int(time.time() * 1000)
-
-    html_code = f"""
-    <div style="display:none;" id="ai-coach-voice-{timestamp}">
-    <script>
-    (function() {{
-        try {{
-            var speechText = "{escaped_text}";
-            var b64Data = "{b64}";
-            var audioPlayed = false;
-
-            function playWebSpeech() {{
-                if (audioPlayed) return;
-                try {{
-                    if ('speechSynthesis' in window && speechText.length > 0) {{
-                        window.speechSynthesis.cancel();
-                        var utter = new SpeechSynthesisUtterance(speechText);
-                        utter.rate = 1.0;
-                        utter.pitch = 1.0;
-                        utter.volume = 1.0;
-                        var voices = window.speechSynthesis.getVoices();
-                        if (voices && voices.length > 0) {{
-                            for (var i = 0; i < voices.length; i++) {{
-                                if (voices[i].lang.indexOf('en') === 0) {{
-                                    utter.voice = voices[i];
-                                    break;
-                                }}
-                            }}
-                        }}
-                        window.speechSynthesis.speak(utter);
-                        audioPlayed = true;
-                    }}
-                }} catch(e) {{
-                    console.error("SpeechSynthesis error:", e);
-                }}
-            }}
-
-            if (b64Data && b64Data.length > 100) {{
-                try {{
-                    if (window._currentCoachAudio) {{
-                        try {{
-                            window._currentCoachAudio.pause();
-                            window._currentCoachAudio.currentTime = 0;
-                        }} catch(e) {{}}
-                    }}
-                    var audio = new Audio("data:audio/mp3;base64," + b64Data);
-                    window._currentCoachAudio = audio;
-                    audio.volume = 1.0;
-                    var playPromise = audio.play();
-                    if (playPromise !== undefined) {{
-                        playPromise.then(function() {{
-                            audioPlayed = true;
-                        }}).catch(function(err) {{
-                            console.warn("HTML5 audio blocked by browser, falling back to Web Speech:", err);
-                            playWebSpeech();
-                        }});
-                    }}
-                }} catch(errAudio) {{
-                    console.warn("Audio element initialization failed, using Web Speech:", errAudio);
-                    playWebSpeech();
-                }}
-            }} else {{
-                playWebSpeech();
-            }}
-        }} catch(globalErr) {{
-            console.error("Coach audio playback failed:", globalErr);
-        }}
-    }})();
-    </script>
-    </div>
-    """
-    st.html(html_code, unsafe_allow_javascript=True)
+    st.markdown("<style>[data-testid='stAudio'] {display: none;}</style>", unsafe_allow_html=True)
+    st.audio(audio_bytes, format="audio/mp3", autoplay=True)
