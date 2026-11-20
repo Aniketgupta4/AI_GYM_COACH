@@ -28,8 +28,7 @@ import pandas as pd
 import streamlit as st
 from services.auth.login_wall import render_login_wall
 from services.state.session_defaults import initial_session_defaults
-from services.config.workout_config import EXERCISE_OPTIONS
-from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles, ensure_sidebar_expanded
+from services.ui.style_loader import load_css, inject_local_font, inject_webrtc_styles
 from services.persistence.exercise_repository import init_db
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from services.vision.exercise_video_processor import VideoProcessorClass
@@ -105,13 +104,34 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     load_css(os.path.join(current_dir, "static", "style.css"))
     inject_local_font(os.path.join(current_dir, "static", "AdobeClean.otf"), "AdobeClean")
-    ensure_sidebar_expanded()
 
     init_db()
     initial_session_defaults()
 
     is_logged_in = st.session_state.get("logged_in", False) and st.session_state.get("user_id") is not None
 
+    # Login screen: NO SIDEBAR ("from login page remove sidebar")
+    if not is_logged_in:
+        st.markdown(
+            """
+            <style>
+            [data-testid="stSidebar"],
+            [data-testid="stExpandSidebarButton"],
+            header[data-testid="stHeader"] [data-testid="stExpandSidebarButton"] {
+                display: none !important;
+                visibility: hidden !important;
+                width: 0 !important;
+                height: 0 !important;
+                pointer-events: none !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        render_login_wall()
+        return
+
+    # Home & Training screen: SHOW SIDEBAR ("home page pe show sidebar")
     if "voice_pipeline" not in st.session_state or st.session_state.voice_pipeline is None:
         try:
             api_key = os.environ.get("GROQ_API_KEY", "")
@@ -311,11 +331,6 @@ def main():
                         st.session_state.audio_id = time.time()
                 st.rerun()
 
-    # Check if athlete is logged in; if not, render high-impact Athlete Login Wall in center view
-    if not is_logged_in:
-        render_login_wall()
-        return
-
     # Modern Center Page Top Navigation & Status Bar
     status_label = "🔴 LIVE TRAINING" if workout_started else "🟢 VISION READY"
     status_color = "#FF3366" if workout_started else "var(--accent-green)"
@@ -490,12 +505,22 @@ def main():
 
         with col_cam:
             # Live Camera Stream
+            rtc_config = {
+                "iceServers": [
+                    {"urls": ["stun:stun.l.google.com:19302"]},
+                    {"urls": ["stun:stun1.l.google.com:19302"]},
+                    {"urls": ["stun:stun2.l.google.com:19302"]},
+                    {"urls": ["stun:stun.cloudflare.com:3478"]},
+                    {"urls": ["stun:stun.services.mozilla.com"]},
+                ]
+            }
+
             try:
                 context = webrtc_streamer(
                     key="exercise-analysis",
                     mode=WebRtcMode.SENDRECV,
                     video_processor_factory=VideoProcessorClass,
-                    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+                    rtc_configuration=rtc_config,
                     media_stream_constraints={
                         "video": True,
                         "audio": False
@@ -505,12 +530,10 @@ def main():
             except Exception:
                 context = None
 
-            if context:
+            if context and context.state.playing:
                 sync_metrics_update(context)
-
-                if context.state.playing:
-                    time.sleep(0.25)
-                    st.rerun()
+                time.sleep(0.3)
+                st.rerun()
 
             inject_webrtc_styles()
 

@@ -35,6 +35,10 @@ def inject_local_font(font_path, font_name):
 
 
 def inject_webrtc_styles():
+    if st.session_state.get("_webrtc_styles_injected", False):
+        return
+    st.session_state["_webrtc_styles_injected"] = True
+
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     font_path = os.path.join(base_dir, "static", "AdobeClean.otf")
     encoded_font = ""
@@ -111,33 +115,6 @@ def inject_webrtc_styles():
 
             findAndPatch();
         }})();
-        </script>
-        """,
-        height=0,
-    )
-
-
-def ensure_sidebar_expanded():
-    components.html(
-        """
-        <script>
-        (function ensureSidebar() {
-            function triggerExpand() {
-                try {
-                    const doc = window.parent.document;
-                    if (!doc) return;
-                    const expandBtn = doc.querySelector('[data-testid="stExpandSidebarButton"]') || 
-                                      doc.querySelector('button[data-testid="stExpandSidebarButton"]');
-                    const sidebar = doc.querySelector('[data-testid="stSidebar"]');
-                    if (expandBtn && (!sidebar || sidebar.getAttribute('aria-expanded') === 'false')) {
-                        expandBtn.click();
-                    }
-                } catch (e) {}
-            }
-            triggerExpand();
-            setTimeout(triggerExpand, 300);
-            setTimeout(triggerExpand, 1000);
-        })();
         </script>
         """,
         height=0,
